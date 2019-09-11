@@ -32,7 +32,7 @@
     
 
 %% time discretisation
-delta_t = 10;
+delta_t = 1;
 t0 = 0;
 tend = 10000;
 
@@ -42,26 +42,25 @@ time = t0:delta_t:tend;
 T_init = 270; 
 
 T_env = 270;
-T_heat = 335;
-
-heaterOn = true;
+T_heat = 400;
+T_soll = [290 295];
 
 %% Heatflow
-if heaterOn
+    on=0;
     Ts = [T_heat T_env T_env T_env];
     k =  [kHeater kWall kWindow kCeiling];
-    Areas = [heaterA wallA windowA floorA];
-else
-    Ts = [T_env T_env T_env];
-    k =  [kWall kWindow kCeiling];
-    Areas = [wallA windowA floorA];
-end
-
-Q_room = @(T) Areas.*k.*(Ts-T);
-T_change = @(t,T) R*T/(p*Vol*cp)*sum(Q_room(T));
+    
+% else
+%     Ts = [T_env T_env T_env];
+%     k =  [kWall kWindow kCeiling];
+%     Areas = [wallA windowA floorA];
+% end
+Areas = @(on) [(on*heaterA) wallA windowA floorA];
+Q_room = @(T,on) Areas(on).*k.*(Ts-T);
+T_change = @(t,T,on) R*T/(p*Vol*cp)*sum(Q_room(T,on));
 %% calculate new Temperature
 
-[time,Temperature] = ode_E(T_change,delta_t,[t0 tend],T_init);
+[time,Temperature] = ode_E(T_change,delta_t,[t0 tend],T_init,T_soll);
 
 plot(time,Temperature)
     
