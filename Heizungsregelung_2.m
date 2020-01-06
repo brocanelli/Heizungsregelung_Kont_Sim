@@ -31,9 +31,9 @@
     
 %environmental parameters
     % temperatures
-    T_init = 280; 
+    T_init = 290; 
 
-    T_env = 283;
+    T_env = 273;
     % T_heat is set to 1 because is automatically changed from the
     % Heizkurve regulation system.
     %THE USE OF ANOTHER REGULATION SYSTEM REQUIRES ADDITION OF A LOOP TO
@@ -44,17 +44,19 @@
     %% Heatflow
     H_Switch = 0; %TO MODIFY AND FIND AN APPROPRIATE USE ONCE THERE'S JUST 
                   %ONE PROGRAM FOR BOTH THE REGULATORS
-    Ts = [T_heat T_env T_env T_env];
+    %Ts got renamed in Tstart, the original Ts is now handled from a function handle
+    Tstart = [T_heat T_env T_env T_env];
     k =  [kHeater kWall kWindow kCeiling];
     Areas = [heaterA wallA windowA floorA];
     
+    T_inside_theoretically = 293;
 % Parameters C1, C2 and root value of the Heizkurve
     %Steepness
         C1 = 0.8;
     %Parallel Slide
-        C2 = 1.6;
+        C2 = 1.2;
     %Root value
-        rootn = 0.9;
+        rootn = 1.1;
         
     
 %% time discretisation
@@ -111,18 +113,20 @@ T_outside_array = T_outside_array + 273.15;
 % the external temperature for each time(t) is calculated as multiplication
 % of the external temperature function * time
 
-% function handle to pick the instant ideal temperature of the heater
-    T_heater = @(t,T_inside) T_inside + C1*nthroot((T_inside-fitresultfunction_ext_temp(t)),rootn)+C2;
+% function handle to pick the instant ideal temperature of the heater -
+% T_inside got modified to T_env because the heating curve is taken as if
+% the internal temperature would be fix
+    T_heater = @(t) T_inside_theoretically + C1*nthroot((T_inside_theoretically-fitresultfunction_ext_temp(t)),rootn)+C2;
     
 % function handle to modify the factor which regulates the temperature 
 % of the heating surface
-    factor = @(t,T,H_regulation) [T_heater(t,T) 1 1 1];
+    factor = @(t,H_regulation) [T_heater(t) 1 1 1];
 
 % with the use of the "Regelung durch Heizkurve", is no more needed the feedback
 % coming from the loop in ODE_E solver(H_regulation), which checks if the 
 % temperature is within the wished range. It is anyway kept for the future
 % creation of a program which easily switches between the two regulators.
-    Q_room = @(t,T,H_regulation) Areas.*k.*((Ts.*factor(t,T,H_regulation))-(fitresultfunction_ext_temp(t)));
+    Q_room = @(t,T,H_regulation) Q_flow(t,T,H_regulation,factor,k,Areas,T_heat,fitresultfunction_ext_temp);
     
     T_change = @(t,T,H_regulation) R*T/(p*Vol*cp)*sum(Q_room(t,T,H_regulation));
 %% Derivation and calculation of the Temperature
